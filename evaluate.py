@@ -88,4 +88,6 @@ if __name__ == '__main__':
         print('Evaluating {}'.format(basename(model)))
         print(evaluate(*make_sequences(model)))
     '''
-    print(evaluate(*make_sequences(sys.argv[1])))
+    results = evaluate(*make_sequences(sys.argv[1]))
+    for language in sorted(results, key=lambda lang: results[lang]['PER']):
+        print(language, results[language])
