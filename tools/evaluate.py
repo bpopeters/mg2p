@@ -51,7 +51,7 @@ def read_words(corpus_file):
     with open(corpus_file) as f:
         return pd.Series([line.strip().split() for line in f])
     
-def results_table(model_path):
+def output_table(model_path):
     """
     model_path: model directory, containing the corpus subdirectory and the
                 results on src.test
@@ -64,14 +64,52 @@ def results_table(model_path):
     lang_id = language_labels(source_test)
     gold_words = read_words(target_test)
     predicted_words = read_words(predicted_test)
-    
+
     return pd.DataFrame.from_items([('lang', lang_id), ('gold', gold_words), ('predicted', predicted_words)])
+    
+def training_size(training_data, index_to_use=None):
+    """
+    training_data: src.train file
+    returns quantity of training data per language
+    """
+    training_size = language_labels(training_data).value_counts()
+    if index_to_use is not None:
+        training_size = training_size[index_to_use].fillna(0)
+    return training_size.astype('int64')
     
 def plot_trainsize_vs_wer():
     pass
-
-if __name__ == '__main__':
-    model_path = '/home/bpop/thesis/mg2p/models/latin-script-brnn-64batch'
     
-    df = results_table(model_path)
-    print(df.groupby('lang').apply(per, wer))
+def raw_output(model_path):
+    """
+    returns a table containing columns for the language, predicted phonemes,
+    and gold phonemes for the given model
+    """
+    source_test = join(model_path, 'corpus', 'src.test')
+    target_test = join(model_path, 'corpus', 'tgt.test')
+    predicted_test = join(model_path, 'predicted.txt')
+    
+    lang_id = language_labels(source_test)
+    gold_words = read_words(target_test)
+    predicted_words = read_words(predicted_test)
+    
+    return pd.DataFrame.from_items([('lang', lang_id), ('gold', gold_words), ('predicted', predicted_words)])
+    
+def evaluate(model_path):
+    """
+    model_path: model directory, containing the corpus subdirectory and the
+                results on src.test
+    returns: ...
+    """
+    source_train = join(model_path, 'corpus', 'src.train')
+    results = raw_output(model_path)
+    training_counts = training_size(source_train, results['lang'].unique())
+    phones = results.groupby('lang').apply(per)
+    words = results.groupby('lang').apply(wer)
+    return pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts)])
+    
+if __name__ == '__main__':
+    import sys
+    model_path = sys.argv[1]
+    model_stats = evaluate(model_path).sort_values(by='per')
+    model_stats.to_csv(join(model_path, 'results.csv'), sep='\t')
