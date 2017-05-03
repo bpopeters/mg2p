@@ -2,4 +2,4 @@ brnn = true
 src_word_vec_size = 100
 tgt_word_vec_size = 100
 rnn_size = 100
-max_batch_size = 16
+max_batch_size = 64
