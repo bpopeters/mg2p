@@ -6,6 +6,7 @@ Tools for reading Deri & Knight's wiktionary pronunciation data.
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from os.path import join
 
 TRAINING_DATA_PATH = '/home/bpop/thesis/mg2p/data/pron_data/gold_data_train'
 TEST_DATA_PATH = '/home/bpop/thesis/mg2p/data/pron_data/gold_data_test'
@@ -19,6 +20,7 @@ def read_data(path, languages=None, scripts=None, min_samples=50):
     """
     # perhaps different processing of the converters will be necessary
     # if I do anything with diacritics
+    # also if I clean the wiktionary data
     df = pd.read_csv(path, sep='\t', 
                 names=['lang', 'script', 'spelling', 'ipa', 'raw_ipa'],
                 usecols=['lang', 'script', 'spelling', 'ipa'],
@@ -51,6 +53,7 @@ def _select_rows(df, column, values):
     else:
         # should this return a copy instead?
         return df
+        
 def sample(df, sample_size):
     """
     Returns a subset of the passed DataFrame with n rows for each language
@@ -87,9 +90,30 @@ def partition_data(df, validation_size):
     
 def write_file(path, data, zeroshot=None):
     """
-    data: 
+    path: location to which to write file
+    data: a Series containing either the source or target text
+    zeroshot: optional tokens to put before each element of the data. May
+            be either a string, in which case the value is broadcast to
+            every sample, or a Series the same length as data
+    writes the source or target data, with or without zero shot tokens,
+    to the file at the specified path
     """
     if zeroshot is not None:
         ('<' + zeroshot + '> ' + data).to_csv(path, index=False)
     else:
         data.to_csv(path, index=False)
+        
+def populate_model_dir(path, languages, scripts):
+    """
+    path: model location
+    writes training, test, and validation data for the specified languages
+    and scripts
+    """
+    train_and_validate = read_data(TRAINING_DATA_PATH, languages, scripts)
+    train, validate = partition_data(train_and_validate, 0.1)
+    test = read_data(TEST_DATA_PATH, languages, scripts)
+    for name, frame in [('train', train), ('dev', validate), ('test', test)]:
+        print('Writing file: ' + join(path, 'corpus', 'src.' + name))
+        write_file(join(path, 'corpus', 'src.' + name), frame['spelling'], frame['lang'])
+        print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
+        write_file(join(path, 'corpus', 'tgt.' + name), frame['ipa'])
