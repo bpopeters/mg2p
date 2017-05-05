@@ -8,8 +8,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from os.path import join
 
-TRAINING_DATA_PATH = '/home/bpop/thesis/mg2p/data/pron_data/gold_data_train'
-TEST_DATA_PATH = '/home/bpop/thesis/mg2p/data/pron_data/gold_data_test'
+TRAINING_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_train'
+TEST_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
 
 def read_data(path, languages=None, scripts=None, min_samples=50):
     """
@@ -87,33 +87,9 @@ def partition_data(df, validation_size):
         num_languages = df['lang'].unique().size
         validation_size = num_languages * validation_size
     return train_test_split(df, test_size=validation_size, stratify=df['lang'], random_state=0)
-    
-def write_file(path, data, zeroshot=None):
-    """
-    path: location to which to write file
-    data: a Series containing either the source or target text
-    zeroshot: optional tokens to put before each element of the data. May
-            be either a string, in which case the value is broadcast to
-            every sample, or a Series the same length as data
-    writes the source or target data, with or without zero shot tokens,
-    to the file at the specified path
-    """
-    if zeroshot is not None:
-        ('<' + zeroshot + '> ' + data).to_csv(path, index=False)
-    else:
-        data.to_csv(path, index=False)
         
-def populate_model_dir(path, languages, scripts):
-    """
-    path: model location
-    writes training, test, and validation data for the specified languages
-    and scripts
-    """
+def generate_pron_data(languages, scripts):
     train_and_validate = read_data(TRAINING_DATA_PATH, languages, scripts)
     train, validate = partition_data(train_and_validate, 0.1)
     test = read_data(TEST_DATA_PATH, languages, scripts)
-    for name, frame in [('train', train), ('dev', validate), ('test', test)]:
-        print('Writing file: ' + join(path, 'corpus', 'src.' + name))
-        write_file(join(path, 'corpus', 'src.' + name), frame['spelling'], frame['lang'])
-        print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
-        write_file(join(path, 'corpus', 'tgt.' + name), frame['ipa'])
+    return train, validate, test
