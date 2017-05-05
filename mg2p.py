@@ -33,11 +33,6 @@ opt = parser.parse_args()
 
 OPENNMT_PATH = '/home/bpop/OpenNMT/'
 MG2P_PATH = '/home/bpop/thesis/mg2p'
-
-def create_model_dir(path):
-    os.makedirs(join(path, 'corpus'))
-    os.makedirs(join(path, 'nn'))
-    print('Made model directory at {}'.format(path))
     
 def main():
     if not any([opt.preprocess, opt.train, opt.translate]):
