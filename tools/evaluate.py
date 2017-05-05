@@ -2,12 +2,13 @@
 
 """
 Functions for measuring and visualizing the performance of g2p models.
+
+todo: functions for comparing one model's results to another's
 """
 
 from os.path import join
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 @np.vectorize
 def levenshtein(a, b):
@@ -97,7 +98,7 @@ def evaluate(model_path):
     """
     model_path: model directory, containing the corpus subdirectory and the
                 results on src.test
-    returns: ...
+    returns: DataFrame containing error rates and the quantity of training data per language
     """
     source_train = join(model_path, 'corpus', 'src.train')
     results = raw_output(model_path)
@@ -106,17 +107,8 @@ def evaluate(model_path):
     words = results.groupby('lang').apply(wer)
     return pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts)])
     
-def plot_trainsize_vs_wer(results):
-    
-    # this has problems if you include the ones with no training data
-    #print(results['training_size'])
-    results.plot.scatter('training_size', 'per', logx=True)
-    #plt.plot(results['training_size'], results['per'], kind='scatter')
-    plt.show()
-    
 if __name__ == '__main__':
     import sys
     model_path = sys.argv[1]
     model_stats = evaluate(model_path).sort_values(by='per')
-    #model_stats.to_csv(join(model_path, 'results.csv'), sep='\t')
-    plot_trainsize_vs_wer(model_stats[model_stats['training_size'] > 0])
+    model_stats.to_csv(join(model_path, 'results.csv'), sep='\t')
