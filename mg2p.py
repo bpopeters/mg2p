@@ -2,7 +2,7 @@
 
 from os.path import join
 import os
-from tools import wiktionary as wikt
+from tools.wrangle_data import write_model
 from tools.lua_functions import preprocess, train, translate
 import argparse
 import sys
@@ -11,6 +11,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('name', help="Path to model")
 parser.add_argument('-preprocess', action='store_true',
         help='Create model directory and populate it with wiktionary data')
+parser.add_argument('-f', '--features',
+        nargs='*',
+        default=['langid'],
+        help='Fake tokens to add to the beginning of each source-side line (default: langid)')
 parser.add_argument('-train', action='store_true',
         help='Train the model')
 parser.add_argument('-translate', action='store_true',
@@ -40,8 +44,7 @@ def main():
         print('Specify at least one action (preprocess, train, test)')
         sys.exit()
     if opt.preprocess:
-        create_model_dir(opt.name)
-        wikt.populate_model_dir(opt.name, opt.lang, opt.script)
+        write_model(opt.name, opt.lang, opt.script, opt.features)
         preprocess(opt.name)
     if opt.train:
         train(opt.name, opt.train_config) # but with the right configuration file
