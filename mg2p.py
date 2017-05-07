@@ -3,7 +3,7 @@
 from os.path import join
 import os
 from tools.wrangle_data import write_model
-from tools.lua_functions import preprocess, train, translate
+from tools.lua_functions import train, translate
 import argparse
 import sys
 
@@ -13,7 +13,7 @@ parser.add_argument('-preprocess', action='store_true',
         help='Create model directory and populate it with wiktionary data')
 parser.add_argument('-f', '--features',
         nargs='*',
-        default=['langid'],
+        default=[],
         help='Fake tokens to add to the beginning of each source-side line (default: langid)')
 parser.add_argument('-train', action='store_true',
         help='Train the model')
@@ -29,6 +29,8 @@ parser.add_argument('-s', '--script',
         nargs='*',
         default=None,
         help='If preprocessing, scripts for which to select data (default: all)')
+parser.add_argument('-p', '--phoneme_vectors', default=None,
+        help='Data source for fixed phoneme embeddings for the decoder (are there really multiple options?)')
 opt = parser.parse_args()
 
 OPENNMT_PATH = '/home/bpop/OpenNMT/'
@@ -39,11 +41,12 @@ def main():
         print('Specify at least one action (preprocess, train, test)')
         sys.exit()
     if opt.preprocess:
-        write_model(opt.name, opt.lang, opt.script, opt.features)
-        preprocess(opt.name)
+        write_model(opt.name, opt.lang, opt.script, opt.features, opt.phoneme_vectors)
+        #preprocess(opt.name)
+        # it's an ugly fact that I'm doing train and translate directly from the lua
+        # but the other goes through the write_model thing.
     if opt.train:
         train(opt.name, opt.train_config) # but with the right configuration file
-        
     if opt.translate:
         # todo: make it possible to infer which model to use better
         translate(opt.name, 'epoch13')
