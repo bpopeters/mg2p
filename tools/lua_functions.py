@@ -29,6 +29,7 @@ def preprocess(path):
     os.chdir(MG2P_PATH)
     
 def train(path, config):
+    # note the -fix_word_vecs_dec: not permanent
     command = ['th', 'train.lua', 
             '-data', join(MG2P_PATH, path, 'corpus/data-train.t7'), 
             '-save_model', join(MG2P_PATH, path, 'nn/model')]
@@ -47,3 +48,6 @@ def translate(path, epoch='epoch13'):
         '-output', join(MG2P_PATH, path, 'predicted.txt'),
         '-log_file', join(MG2P_PATH, path, 'best_five.txt')])
     os.chdir(MG2P_PATH)
+    
+def serialize_vectors(raw_path, serialized_path):
+    subprocess.run(['th', '/home/bpop/thesis/mg2p/tools/serialize.lua', raw_path, serialized_path])
