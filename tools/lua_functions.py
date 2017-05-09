@@ -49,5 +49,13 @@ def translate(path, epoch='epoch13'):
         '-log_file', join(MG2P_PATH, path, 'best_five.txt')])
     os.chdir(MG2P_PATH)
     
+def extract_embeddings(path, epoch='epoch13'):
+    network = next((p for p in os.listdir(join(MG2P_PATH, path, 'nn')) if epoch in p))
+    os.chdir(OPENNMT_PATH)
+    subprocess.run(['th', 'tools/extract_embeddings.lua', 
+                    '-model', join(MG2P_PATH, path, 'nn', network), 
+                    '-output_dir', path])
+    os.chdir(MG2P_PATH)
+    
 def serialize_vectors(raw_path, serialized_path):
     subprocess.run(['th', '/home/bpop/thesis/mg2p/tools/serialize.lua', raw_path, serialized_path])
