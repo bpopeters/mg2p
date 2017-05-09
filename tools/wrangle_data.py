@@ -9,10 +9,9 @@ can subsequently be used for training and translation.
 import os
 from os.path import join
 import tools.wiktionary as wiki # purpose of wiki: turn D&K stuff into pandas data structures
-# here: import a module for the uriel stuff
+import tools.wals as wals
 from tools.lua_functions import preprocess, serialize_vectors
 import pandas as pd
-from collections import Counter
 
 # wouldn't it be better to just take arbitrarily many Series, 
 def prepend_tokens(source_data, *args):
@@ -23,10 +22,12 @@ def prepend_tokens(source_data, *args):
                 with normal orthographic symbols
     returns: a Series consisting of training samples with the appropriate
     """
-    tokens = [arg.apply('<{}>'.format) for arg in args]
+    #tokens = [arg.apply('<{}>'.format) for arg in args]
+    # new ugly code: allows for sequences that contain more than one token
+    # per line, such as the one for country codes
+    tokens = [arg.apply(lambda columntoks: ' '.join('<{}>'.format(t) for t in str(columntoks).split())) for arg in args]
     return tokens[0].str.cat(tokens[1:] + [source_data], sep=' ')
         
-
 def create_model_dir(path):
     os.makedirs(join(path, 'corpus'))
     os.makedirs(join(path, 'nn'))
@@ -39,11 +40,7 @@ def get_language(data):
     returns: a Series identifying the language of each line
     """
     return data['lang']
-    
-def get_geo_clusters(data):
-    clusters = pd.read_csv('/home/bpop/thesis/mg2p/data/latlongclusters.csv', names=['lang', 'cluster'], index_col='lang').squeeze()
-    return clusters.loc[data['lang']]
-    
+        
 def read_phoible(path):
     """
     path: location of PHOIBLE tsv 
@@ -70,7 +67,7 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     scripts: scripts to include in model
     features: feature tokens to 
     """
-    feature_map = {'langid':get_language, 'geo':get_geo_clusters}
+    feature_map = {'langid':get_language, 'genus':wals.get_genus, 'country':wals.get_countries}
     create_model_dir(path)
     train, validate, test = wiki.generate_pron_data(languages, scripts) # exact format of each of these?
     # here: auxiliary data sources
