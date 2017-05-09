@@ -11,6 +11,18 @@ from os.path import join
 TRAINING_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_train'
 TEST_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
 
+HIGH_RESOURCE = ['heb', 'kor', 'kur', 'zho', 'yue', 'ast', 'yid', 'ukr', 
+                'ang', 'isl', 'nob', 'fin', 'mya', 'jpn', 'tgl', 'nan', 
+                'ady', 'swe', 'tha', 'pus', 'vol', 'lao', 'san', 'amh', 
+                'ltz', 'hun', 'sco', 'sga', 'fra', 'afr', 'nno', 'dsb', 
+                'gle', 'por', 'epo', 'tel', 'nci', 'slv', 'pol', 'bak', 
+                'fao', 'tur', 'gla', 'lat', 'slk', 'hbs', 'ben', 'vie', 
+                'eng', 'hin', 'dan', 'cat', 'oci', 'ces', 'hye', 'deu', 
+                'ron', 'lit', 'spa', 'ita', 'ido', 'tgk', 'nld', 'jbo', 
+                'kat', 'aze', 'sqi', 'arc', 'fas', 'mkd', 'ara', 'lav', 
+                'kbd', 'bre', 'scn', 'bul', 'cym', 'urd', 'rus', 'ain', 
+                'ell', 'syc', 'msa', 'mlt', 'eus']
+
 def read_data(path, languages=None, scripts=None, min_samples=50):
     """
     path: location of one of Deri & Knight's pronunciation tables
@@ -56,7 +68,7 @@ def _select_rows(df, column, values):
         
 def sample(df, sample_size):
     """
-    Returns a subset of the passed DataFrame with n rows for each language
+    Returns a subset of the passed DataFrame with at most n rows for each language
     sample_size: int or dictionary from language codes to ints. If an int, 
                 returns a DataFrame with that many training samples for 
                 each language. Using a dictionary allows for a different
@@ -64,8 +76,12 @@ def sample(df, sample_size):
                 in the DataFrame is not present in the dictionary, all
                 samples from that language will be kept.
     """
+    
+    #df.groupby('lang')
+    
     # using the sklearn train_test_split may have been a nice hack here
     def lang_sample(frame):
+        '''
         if isinstance(sample_size, int):
             return frame.sample(n=sample_size, random_state=0)
         else:
@@ -75,6 +91,16 @@ def sample(df, sample_size):
                 return frame.sample(n=sample_size[language], random_state=0)
             else:
                 return frame
+        '''
+        #return frame.sample(n=min(sample_size, frame.size), random_state=0)
+        #print(frame.size)
+        
+        if sample_size >= frame.shape[0]:
+            return frame
+        else:
+            result, _ = train_test_split(frame, train_size=sample_size, random_state=0)
+            return result
+            
     return df.groupby('lang').apply(lang_sample)
     
 def partition_data(df, validation_size):
@@ -89,7 +115,9 @@ def partition_data(df, validation_size):
     return train_test_split(df, test_size=validation_size, stratify=df['lang'], random_state=0)
         
 def generate_pron_data(languages, scripts):
-    train_and_validate = read_data(TRAINING_DATA_PATH, languages, scripts)
+    if languages == ['high']:
+        languages = HIGH_RESOURCE #a little hacky
+    train_and_validate = sample(read_data(TRAINING_DATA_PATH, languages, scripts), 10000)
     train, validate = partition_data(train_and_validate, 0.1)
     test = read_data(TEST_DATA_PATH, languages, scripts)
     return train, validate, test
