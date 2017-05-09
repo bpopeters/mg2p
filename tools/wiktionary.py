@@ -37,6 +37,7 @@ def read_data(path, languages=None, scripts=None, min_samples=50):
                 names=['lang', 'script', 'spelling', 'ipa', 'raw_ipa'],
                 usecols=['lang', 'script', 'spelling', 'ipa'],
                 converters={'spelling': lambda word: ' '.join(w.lower().strip() for w in word)},
+                na_filter=False, #because there's a language with ISO 639-3 code nan
                 encoding='utf-8')
     selected_langs = select_languages(df, languages)
     selected_langs_and_scripts = select_scripts(selected_langs, scripts)
