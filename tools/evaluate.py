@@ -111,4 +111,5 @@ if __name__ == '__main__':
     import sys
     model_path = sys.argv[1]
     model_stats = evaluate(model_path).sort_values(by='per')
+    print(model_stats.mean())
     model_stats.to_csv(join(model_path, 'results.csv'), sep='\t')
