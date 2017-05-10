@@ -11,19 +11,41 @@ from os.path import join
 TRAINING_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_train'
 TEST_DATA_PATH = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
 
-HIGH_RESOURCE = ['heb', 'kor', 'kur', 'zho', 'yue', 'ast', 'yid', 'ukr', 
-                'ang', 'isl', 'nob', 'fin', 'mya', 'jpn', 'tgl', 'nan', 
-                'ady', 'swe', 'tha', 'pus', 'vol', 'lao', 'san', 'amh', 
-                'ltz', 'hun', 'sco', 'sga', 'fra', 'afr', 'nno', 'dsb', 
-                'gle', 'por', 'epo', 'tel', 'nci', 'slv', 'pol', 'bak', 
-                'fao', 'tur', 'gla', 'lat', 'slk', 'hbs', 'ben', 'vie', 
-                'eng', 'hin', 'dan', 'cat', 'oci', 'ces', 'hye', 'deu', 
-                'ron', 'lit', 'spa', 'ita', 'ido', 'tgk', 'nld', 'jbo', 
-                'kat', 'aze', 'sqi', 'arc', 'fas', 'mkd', 'ara', 'lav', 
-                'kbd', 'bre', 'scn', 'bul', 'cym', 'urd', 'rus', 'ain', 
-                'ell', 'syc', 'msa', 'mlt', 'eus']
+HIGH_RESOURCE = ['ady', 'afr', 'ain', 'amh', 'ang', 'ara', 'arc', 'ast', 
+                'aze', 'bak', 'ben', 'bre', 'bul', 'cat', 'ces', 'cym', 
+                'dan', 'deu', 'dsb', 'ell', 'eng', 'epo', 'eus', 'fao', 
+                'fas', 'fin', 'fra', 'gla', 'gle', 'hbs', 'heb', 'hin', 
+                'hun', 'hye', 'ido', 'isl', 'ita', 'jbo', 'jpn', 'kat', 
+                'kbd', 'kor', 'kur', 'lao', 'lat', 'lav', 'lit', 'ltz', 
+                'mkd', 'mlt', 'msa', 'mya', 'nan', 'nci', 'nld', 'nno', 
+                'nob', 'oci', 'pol', 'por', 'pus', 'ron', 'rus', 'san', 
+                'scn', 'sco', 'sga', 'slk', 'slv', 'spa', 'sqi', 'swe', 
+                'syc', 'tel', 'tgk', 'tgl', 'tha', 'tur', 'ukr', 'urd', 
+                'vie', 'vol', 'yid', 'yue', 'zho']
+                
+LOW_RESOURCE = ['aar', 'abk', 'abq', 'ace', 'ach', 'agr', 'aka', 'akl', 
+                'akz', 'ale', 'alt', 'ami', 'aqc', 'arg', 'arw', 'arz', 
+                'asm', 'ava', 'aym', 'bal', 'bam', 'bcl', 'bel', 'bis', 
+                'bod', 'bos', 'bua', 'bug', 'ceb', 'cha', 'che', 'chk', 
+                'chm', 'cho', 'chv', 'cic', 'cjs', 'cor', 'crh', 'dar', 
+                'est', 'ewe', 'fij', 'fil', 'frr', 'fry', 'fur', 'gaa', 
+                'gag', 'glg', 'grc', 'grn', 'gsw', 'guj', 'hak', 'hat', 
+                'hau', 'haw', 'hil', 'hit', 'hrv', 'iba', 'ilo', 'ind', 
+                'inh', 'jam', 'jav', 'kaa', 'kab', 'kal', 'kan', 'kaz', 
+                'kea', 'ket', 'khb', 'kin', 'kir', 'kjh', 'kom', 'kum', 
+                'lin', 'lld', 'lug', 'luo', 'lus', 'lzz', 'mah', 'mal', 
+                'mar', 'mlg', 'mnk', 'mns', 'moh', 'mon', 'mri', 'mus', 
+                'mww', 'myv', 'mzn', 'nah', 'nap', 'nau', 'nds', 'nep', 
+                'new', 'nia', 'niu', 'non', 'nor', 'nso', 'oss', 'osx', 
+                'pag', 'pam', 'pan', 'pau', 'pon', 'ppl', 'prs', 'que', 
+                'roh', 'rom', 'rtm', 'ryu', 'sac', 'sah', 'sat', 'sei', 
+                'sme', 'sna', 'snd', 'som', 'sot', 'srd', 'srp', 'sun', 
+                'swa', 'tam', 'tat', 'tay', 'tir', 'tkl', 'tly', 'tpi', 
+                'tsn', 'tuk', 'tvl', 'twi', 'tyv', 'udm', 'uig', 'umb', 
+                'unk', 'uzb', 'wbp', 'wol', 'wuu', 'xal', 'xho', 'xmf', 
+                'yap', 'yij', 'yor', 'yua', 'zha', 'zul', 'zza']
 
-def read_data(path, languages=None, scripts=None, min_samples=50):
+def read_data(path, languages=None, scripts=None):
     """
     path: location of one of Deri & Knight's pronunciation tables
     languages: languages to take from the data (default: take all)
@@ -39,15 +61,9 @@ def read_data(path, languages=None, scripts=None, min_samples=50):
                 converters={'spelling': lambda word: ' '.join(w.lower().strip() for w in word)},
                 na_filter=False, #because there's a language with ISO 639-3 code nan
                 encoding='utf-8')
-    selected_langs = select_languages(df, languages)
+    selected_langs = select_languages(df, languages) # sorta spaghetti
     selected_langs_and_scripts = select_scripts(selected_langs, scripts)
-    
-    # these next few lines are because of problems partitioning the data
-    # if a language has only a few samples
-    lang_counts = selected_langs_and_scripts.groupby('lang').size()
-    sufficient_languages = lang_counts[lang_counts >= min_samples]
-    indexer = selected_langs_and_scripts['lang'].isin(sufficient_languages.index)
-    return selected_langs_and_scripts[indexer]
+    return selected_langs_and_scripts
                 
 def select_languages(df, languages):
     """
@@ -77,47 +93,38 @@ def sample(df, sample_size):
                 in the DataFrame is not present in the dictionary, all
                 samples from that language will be kept.
     """
-    
-    #df.groupby('lang')
-    
     # using the sklearn train_test_split may have been a nice hack here
     def lang_sample(frame):
-        '''
-        if isinstance(sample_size, int):
-            return frame.sample(n=sample_size, random_state=0)
-        else:
-            # should be something dict-like
-            language = frame.name
-            if language in sample_size:
-                return frame.sample(n=sample_size[language], random_state=0)
-            else:
-                return frame
-        '''
-        #return frame.sample(n=min(sample_size, frame.size), random_state=0)
-        #print(frame.size)
         
         if sample_size >= frame.shape[0]:
             return frame
         else:
             result, _ = train_test_split(frame, train_size=sample_size, random_state=0)
             return result
-            
     return df.groupby('lang').apply(lang_sample)
     
+# this part here is the problem
 def partition_data(df, validation_size):
     """
-    validation_size: integer or float: per-language size of the validation set
+    validation_size: float: maximum portion of data per language size of the validation set
     returns: a partition of the data into training and validation
     """
-    if validation_size > 1:
-        # integer case: validation size specifies number of words
-        num_languages = df['lang'].unique().size
-        validation_size = num_languages * validation_size
-    return train_test_split(df, test_size=validation_size, stratify=df['lang'], random_state=0)
-        
+    def lang_sample(frame):
+        if frame.shape[0] >= 10:
+            return frame.sample(frac=0.9, random_state=0)
+        else:
+            return frame
+    train = df.groupby('lang').apply(lang_sample).reset_index(drop=True, level=0)
+    validation = df[~df.index.isin(train.index)]
+    print(train['lang'].unique().size)
+    print(validation['lang'].unique().size)
+    return train, validation
+
 def generate_pron_data(languages, scripts):
     if languages == ['high']:
         languages = HIGH_RESOURCE #a little hacky
+    elif languages == ['all_lang']:
+        languages = HIGH_RESOURCE + LOW_RESOURCE
     train_and_validate = sample(read_data(TRAINING_DATA_PATH, languages, scripts), 10000)
     train, validate = partition_data(train_and_validate, 0.1)
     test = read_data(TEST_DATA_PATH, languages, scripts)
