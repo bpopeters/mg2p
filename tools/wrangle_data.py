@@ -13,7 +13,7 @@ import tools.wals as wals
 from tools.lua_functions import preprocess, serialize_vectors
 import pandas as pd
 
-# wouldn't it be better to just take arbitrarily many Series, 
+# wouldn't it be better to just take arbitrarily many Series,
 def prepend_tokens(source_data, *args):
     """
     source_data: a Series of source-side orthographic data
@@ -22,10 +22,8 @@ def prepend_tokens(source_data, *args):
                 with normal orthographic symbols
     returns: a Series consisting of training samples with the appropriate
     """
-    #tokens = [arg.apply('<{}>'.format) for arg in args]
-    # new ugly code: allows for sequences that contain more than one token
-    # per line, such as the one for country codes
-    tokens = [arg.apply(lambda columntoks: ' '.join('<{}>'.format(t) for t in str(columntoks).split())) for arg in args]
+    # this is very ugly
+    tokens = [arg.apply(lambda x: '<{}>'.format('_'.join(str(x).split()))) for arg in args]
     return tokens[0].str.cat(tokens[1:] + [source_data], sep=' ')
         
 def create_model_dir(path):
