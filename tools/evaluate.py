@@ -88,14 +88,17 @@ def wer(results):
     """
     return (results['predicted'] != results['gold']).sum() / results['predicted'].size
         
+'''
 def language_labels(source_file):
     with open(source_file) as f:
         return pd.Series([line.split(None, 1)[0] for line in f])
+'''
         
-def read_words(corpus_file):
+def word_series(corpus_file):
     with open(corpus_file) as f:
         return pd.Series([line.strip().split() for line in f])
     
+'''
 def output_table(model_path):
     """
     model_path: model directory, containing the corpus subdirectory and the
@@ -111,6 +114,7 @@ def output_table(model_path):
     predicted_words = read_words(predicted_test)
 
     return pd.DataFrame.from_items([('lang', lang_id), ('gold', gold_words), ('predicted', predicted_words)])
+'''
     
 def corpus_size(data, index_to_use=None):
     """
@@ -136,32 +140,77 @@ def raw_output(model_path):
     predicted_words = read_words(predicted_test)
     
     return pd.DataFrame.from_items([('lang', lang_id), ('gold', gold_words), ('predicted', predicted_words)])
-    
-def evaluate(model_path):
+
+'''    
+def evaluate_single_model(path):
     """
     model_path: model directory, containing the corpus subdirectory and the
                 results on src.test
     returns: DataFrame containing error rates and the quantity of training data per language
     """
-    source_train = join(model_path, 'corpus', 'src.train')
-    source_test = join(model_path, 'corpus', 'src.test')
+    # compare the predicted.txt against the tgt.test
+    # also 
+    
+    
+    source_train = join(path, 'corpus', 'src.train')
+    source_test = join(path, 'corpus', 'src.test') 
     results = raw_output(model_path)
     training_counts = corpus_size(source_train, results['lang'].unique())
     test_counts = corpus_size(source_test, results['lang'].unique())
     phones = results.groupby('lang').apply(per)
     words = results.groupby('lang').apply(wer)
     df = pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts), ('test_size', test_counts)])
-    #df = df.append(pd.Series(name='overall', data=df.mean()))
     return df
+'''
+
+def evaluate_single_model(path):
+    """
+    model_path: model directory, containing the corpus subdirectory and the
+                results on src.test
+    returns: DataFrame containing error rates and the quantity of training data per language
+    """
+    # compare the predicted.txt against the tgt.test
+    # also 
+    predicted = word_series(join(path, 'predicted.txt')) # is it necessary to do it like this?
+    gold = word_series(join(path, 'corpus', 'tgt.test'))
+    lang_id = pd.read_csv(join(path, 'corpus', 'lang_index.test'), header=None).squeeze()
+    
+    results = pd.DataFrame.from_items([('lang', lang_id), ('gold', gold), ('predicted', predicted)])
+    #training_counts = corpus_size(source_train, results['lang'].unique())
+    #test_counts = corpus_size(source_test, results['lang'].unique())
+    phones = results.groupby('lang').apply(per)
+    words = results.groupby('lang').apply(wer)
+    #df = pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts), ('test_size', test_counts)])
+    df = pd.DataFrame.from_items([('wer', words), ('per', phones)])
+    return df
+    
+
+def evaluate(models):
+    """
+    models: a sequence of directories containing neural nets and corpora.
+            Models should already have been translated on the full test set.
+    returns: A table. The index has rows for each language present in the test data,
+            plus additional rows summarizing the results on the 85-language high
+            resource languages, the 229-language adapted languages (see
+            Deri and Knight's paper for details), and on the entire test
+            set.
+    """
+    # so, there's something in here that needs to be several times:
+    # gotta read in each model and measure its results
+    
+    # not done
+    return pd.concat([evaluate_single_model(path) for path in models], axis=1)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('name', help="Path to model")
+    parser.add_argument('models', nargs='*', default=[], help="Paths to models")
     opt = parser.parse_args()
-    languages = ['<{}>'.format(lang) for lang in ADAPTED]
+    #languages = ['<{}>'.format(lang) for lang in ADAPTED]
     #languages = ['<{}>'.format(lang) for lang in HIGH_RESOURCE]
     
-    model_stats = evaluate(opt.name)
+    model_stats = evaluate(opt.models)
+    '''
     model_stats = model_stats.loc[languages,:]
     print(model_stats.mean())
     model_stats.sort_values(by='per').to_csv(join(model_path, 'results.csv'), sep='\t')
+    '''
