@@ -83,7 +83,7 @@ def main():
         if opt.lang == ['high']:
             lang = HIGH_RESOURCE
         elif opt.lang == ['adapted']:
-            lang == ADAPTED
+            lang = ADAPTED
         else:
             lang = opt.lang
         write_model(opt.name, lang, opt.script, opt.features, opt.phoneme_vectors)
