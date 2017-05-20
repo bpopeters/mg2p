@@ -34,9 +34,6 @@ parser.add_argument('-d', '--data', default='wiktionary',
 parser.add_argument('-p', '--phoneme_vectors', default=None,
         help='Data source for fixed phoneme embeddings for the decoder (are there really multiple options?)')
 opt = parser.parse_args()
-
-OPENNMT_PATH = '/home/bpop/OpenNMT/'
-MG2P_PATH = '/home/bpop/thesis/mg2p'
     
 def main():
     if not any([opt.preprocess, opt.train, opt.translate]):
@@ -44,13 +41,9 @@ def main():
         sys.exit()
     if opt.preprocess:
         write_model(opt.name, opt.lang, opt.script, opt.features, opt.data, opt.phoneme_vectors)
-        #preprocess(opt.name)
-        # it's an ugly fact that I'm doing train and translate directly from the lua
-        # but the other goes through the write_model thing.
     if opt.train:
-        train(opt.name, opt.train_config) # but with the right configuration file
+        train(opt.name, opt.train_config)
     if opt.translate:
-        # todo: make it possible to infer which model to use better
         translate(opt.name, 'epoch13')
 
 if __name__ == '__main__':
