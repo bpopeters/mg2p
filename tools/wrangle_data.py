@@ -58,7 +58,7 @@ def get_vocab(path):
     with open(path) as f:
         return [line.split()[0] if '<' not in line else '<' for line in f]
     
-def write_model(path, languages, scripts, features, phoneme_vectors):
+def write_model(path, languages, scripts, features, data_source, phoneme_vectors):
     """
     path: location at which to write model
     languages: languages to include in model
@@ -67,7 +67,7 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     """
     feature_map = {'langid':get_language, 'genus':wals.get_genus, 'country':wals.get_countries}
     create_model_dir(path)
-    train, validate, test = wiki.generate_pron_data(languages, scripts) # exact format of each of these?
+    train, validate, test = wiki.generate_pron_data(languages, scripts, data_source)
     # here: auxiliary data sources
     
     for name, frame in [('train', train), ('dev', validate), ('test', test)]:
