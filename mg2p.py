@@ -29,18 +29,64 @@ parser.add_argument('-s', '--script',
         nargs='*',
         default=None,
         help='If preprocessing, scripts for which to select data (default: all)')
-parser.add_argument('-d', '--data', default='wiktionary',
-        help='Whether to train with wiktionary or ipahelp (default: wiktionary)')
 parser.add_argument('-p', '--phoneme_vectors', default=None,
         help='Data source for fixed phoneme embeddings for the decoder (are there really multiple options?)')
 opt = parser.parse_args()
+
+HIGH_RESOURCE = ['ady', 'afr', 'ain', 'amh', 'ang', 'ara', 'arc', 'ast', 
+                'aze', 'bak', 'ben', 'bre', 'bul', 'cat', 'ces', 'cym', 
+                'dan', 'deu', 'dsb', 'ell', 'eng', 'epo', 'eus', 'fao', 
+                'fas', 'fin', 'fra', 'gla', 'gle', 'hbs', 'heb', 'hin', 
+                'hun', 'hye', 'ido', 'isl', 'ita', 'jbo', 'jpn', 'kat', 
+                'kbd', 'kor', 'kur', 'lao', 'lat', 'lav', 'lit', 'ltz', 
+                'mkd', 'mlt', 'msa', 'mya', 'nan', 'nci', 'nld', 'nno', 
+                'nob', 'oci', 'pol', 'por', 'pus', 'ron', 'rus', 'san', 
+                'scn', 'sco', 'sga', 'slk', 'slv', 'spa', 'sqi', 'swe', 
+                'syc', 'tel', 'tgk', 'tgl', 'tha', 'tur', 'ukr', 'urd', 
+                'vie', 'vol', 'yid', 'yue', 'zho']
+                
+ADAPTED = ['aar', 'abk', 'abq', 'ace', 'ach', 'ady', 'afr', 'agr', 
+                'aka', 'akl', 'akz', 'ale', 'alt', 'ami', 'aqc', 'ara', 
+                'arg', 'arw', 'arz', 'asm', 'ava', 'aym', 'aze', 'bak', 
+                'bal', 'bam', 'bcl', 'bel', 'ben', 'bis', 'bod', 'bos', 
+                'bre', 'bua', 'bug', 'bul', 'cat', 'ceb', 'ces', 'cha', 
+                'che', 'chk', 'chm', 'cho', 'chv', 'cic', 'cjs', 'cor', 
+                'crh', 'cym', 'dan', 'dar', 'deu', 'dsb', 'eng', 'est', 
+                'eus', 'ewe', 'fao', 'fas', 'fij', 'fil', 'fin', 'fra', 
+                'frr', 'fry', 'fur', 'gaa', 'gag', 'gla', 'gle', 'glg', 
+                'grc', 'grn', 'gsw', 'guj', 'hak', 'hat', 'hau', 'haw', 
+                'hbs', 'heb', 'hil', 'hin', 'hit', 'hrv', 'hun', 'iba', 
+                'ilo', 'ind', 'inh', 'isl', 'ita', 'jam', 'jav', 'kaa', 
+                'kab', 'kal', 'kan', 'kaz', 'kbd', 'kea', 'ket', 'khb', 
+                'kin', 'kir', 'kjh', 'kom', 'kum', 'kur', 'lat', 'lav', 
+                'lin', 'lit', 'lld', 'lug', 'luo', 'lus', 'lzz', 'mah', 
+                'mal', 'mar', 'mkd', 'mlg', 'mlt', 'mnk', 'mns', 'moh', 
+                'mon', 'mri', 'msa', 'mus', 'mww', 'mya', 'myv', 'mzn', 
+                'nah', 'nap', 'nau', 'nci', 'nds', 'nep', 'new', 'nia', 
+                'niu', 'nld', 'nob', 'non', 'nor', 'nso', 'oci', 'oss', 
+                'osx', 'pag', 'pam', 'pan', 'pau', 'pol', 'pon', 'por', 
+                'ppl', 'prs', 'pus', 'que', 'roh', 'rom', 'ron', 'rtm', 
+                'rus', 'ryu', 'sac', 'sah', 'san', 'sat', 'scn', 'sei', 
+                'slv', 'sme', 'sna', 'snd', 'som', 'sot', 'spa', 'sqi', 
+                'srd', 'srp', 'sun', 'swa', 'swe', 'tam', 'tat', 'tay', 
+                'tel', 'tgk', 'tgl', 'tir', 'tkl', 'tly', 'tpi', 'tsn', 
+                'tuk', 'tur', 'tvl', 'twi', 'tyv', 'udm', 'uig', 'ukr', 
+                'umb', 'unk', 'urd', 'uzb', 'vie', 'wbp', 'wol', 'wuu', 
+                'xal', 'xho', 'xmf', 'yap', 'yid', 'yij', 'yor', 'yua', 
+                'yue', 'zha', 'zho', 'zul', 'zza']
     
 def main():
     if not any([opt.preprocess, opt.train, opt.translate]):
         print('Specify at least one action (preprocess, train, test)')
         sys.exit()
     if opt.preprocess:
-        write_model(opt.name, opt.lang, opt.script, opt.features, opt.data, opt.phoneme_vectors)
+        if opt.lang == ['high']:
+            lang = HIGH_RESOURCE
+        elif opt.lang == ['adapted']:
+            lang == ADAPTED
+        else:
+            lang = opt.lang
+        write_model(opt.name, lang, opt.script, opt.features, opt.phoneme_vectors)
     if opt.train:
         train(opt.name, opt.train_config)
     if opt.translate:
