@@ -26,8 +26,8 @@ def preprocess(path):
                     '-valid_src', join(corpus, 'src.dev'), 
                     '-valid_tgt', join(corpus, 'tgt.dev'), 
                     '-save_data', join(corpus, 'data'),
-                    'src_seq_length', 120,
-                    'tgt_seq_length', 250])
+                    'src_seq_length', '120',
+                    'tgt_seq_length', '250'])
     os.chdir(MG2P_PATH)
     
 def train(path, config):
