@@ -29,6 +29,8 @@ parser.add_argument('-s', '--script',
         nargs='*',
         default=None,
         help='If preprocessing, scripts for which to select data (default: all)')
+parser.add_argument('-d', '--data', default='wiktionary',
+        help='Whether to train with wiktionary or ipahelp (default: wiktionary)')
 parser.add_argument('-p', '--phoneme_vectors', default=None,
         help='Data source for fixed phoneme embeddings for the decoder (are there really multiple options?)')
 opt = parser.parse_args()
@@ -41,7 +43,7 @@ def main():
         print('Specify at least one action (preprocess, train, test)')
         sys.exit()
     if opt.preprocess:
-        write_model(opt.name, opt.lang, opt.script, opt.features, opt.phoneme_vectors)
+        write_model(opt.name, opt.lang, opt.script, opt.features, opt.data, opt.phoneme_vectors)
         #preprocess(opt.name)
         # it's an ugly fact that I'm doing train and translate directly from the lua
         # but the other goes through the write_model thing.
