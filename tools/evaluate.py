@@ -9,6 +9,7 @@ todo: functions for comparing one model's results to another's
 from os.path import join
 import pandas as pd
 import numpy as np
+import argparse
 
 HIGH_RESOURCE = ['ady', 'afr', 'ain', 'amh', 'ang', 'ara', 'arc', 'ast', 
                 'aze', 'bak', 'ben', 'bre', 'bul', 'cat', 'ces', 'cym', 
@@ -44,7 +45,7 @@ LOW_RESOURCE = ['aar', 'abk', 'abq', 'ace', 'ach', 'agr', 'aka', 'akl',
                 'unk', 'uzb', 'wbp', 'wol', 'wuu', 'xal', 'xho', 'xmf', 
                 'yap', 'yij', 'yor', 'yua', 'zha', 'zul', 'zza']
                 
-DK_LANGUAGES = ['aar', 'abk', 'abq', 'ace', 'ach', 'ady', 'afr', 'agr', 
+ADAPTED = ['aar', 'abk', 'abq', 'ace', 'ach', 'ady', 'afr', 'agr', 
                 'aka', 'akl', 'akz', 'ale', 'alt', 'ami', 'aqc', 'ara', 
                 'arg', 'arw', 'arz', 'asm', 'ava', 'aym', 'aze', 'bak', 
                 'bal', 'bam', 'bcl', 'bel', 'ben', 'bis', 'bod', 'bos', 
@@ -171,16 +172,18 @@ def evaluate(model_path):
     test_counts = corpus_size(source_test, results['lang'].unique())
     phones = results.groupby('lang').apply(per)
     words = results.groupby('lang').apply(wer)
-    return pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts), ('test_size', test_counts)])
+    df = pd.DataFrame.from_items([('wer', words), ('per', phones), ('training_size', training_counts), ('test_size', test_counts)])
+    #df = df.append(pd.Series(name='overall', data=df.mean()))
+    return df
     
 if __name__ == '__main__':
-    import sys
-    model_path = sys.argv[1]
-    #languages = HIGH_RESOURCE + LOW_RESOURCE
-    #exclude = {'umb', 'iba', 'pam', 'bam', 'tay', 'cho'}
-    languages = ['<{}>'.format(lang) for lang in DK_LANGUAGES]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', help="Path to model")
+    opt = parser.parse_args()
+    languages = ['<{}>'.format(lang) for lang in ADAPTED]
+    #languages = ['<{}>'.format(lang) for lang in HIGH_RESOURCE]
     
-    model_stats = evaluate(model_path)
+    model_stats = evaluate(opt.name)
     model_stats = model_stats.loc[languages,:]
     print(model_stats.mean())
     model_stats.sort_values(by='per').to_csv(join(model_path, 'results.csv'), sep='\t')
