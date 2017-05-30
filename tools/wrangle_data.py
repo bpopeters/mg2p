@@ -9,8 +9,8 @@ can subsequently be used for training and translation.
 import os
 from os.path import join
 import tools.wiktionary as wiki # purpose of wiki: turn D&K stuff into pandas data structures
-import tools.wals as wals
 from tools.lua_functions import preprocess, serialize_vectors
+import tools.uriel_inventory as ur_inv
 import pandas as pd
 
 # wouldn't it be better to just take arbitrarily many Series,
@@ -20,7 +20,7 @@ def prepend_tokens(source_data, *args):
     other arguments: str or Series. Values in prependers are put
                 inside angle brackets to make sure they never get confused
                 with normal orthographic symbols
-    returns: a Series consisting of training samples with the appropriate
+    returns: a Series consisting of training samples with the appropriate tokens attached to the front
     """
     # this is very ugly
     tokens = [arg.apply(lambda x: '<{}>'.format('_'.join(str(x).split()))) for arg in args]
@@ -65,7 +65,6 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     scripts: scripts to include in model
     features: feature tokens to 
     """
-    feature_map = {'langid':get_language, 'genus':wals.get_genus, 'country':wals.get_countries}
     create_model_dir(path)
     train, validate = wiki.generate_partitioned_train_validate(languages, scripts)
     test = wiki.generate_test() # every model gets the same test set
@@ -74,13 +73,13 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     
     for name, frame in [('train', train), ('dev', validate), ('test', test)]:
         print('Writing file: ' + join(path, 'corpus', 'src.' + name))
-        # convert the features to be used into the appropriate
-        #for feature in features:
-        prependers = [feature_map[feature](frame) for feature in features]
-        if prependers:
-            source_data = prepend_tokens(frame['spelling'], *prependers)
-        else:
-            source_data = frame['spelling']
+        source_data = frame['spelling']
+        if 'langid' in features:
+            source_data = prepend_tokens(source_data, get_language(frame))
+        if 'inventory' in features:
+            inventory = ur_inv.get_features(frame)
+            #source_data = prepend_tokens(frame['spelling'], ur_inv.get_features(frame))
+            source_data = inventory.str.cat(source_data, sep=' ')
         source_data.to_csv(join(path, 'corpus', 'src.' + name), index=False)
         print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
         frame['ipa'].to_csv(join(path, 'corpus', 'tgt.' + name), index=False)
