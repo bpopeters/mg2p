@@ -51,16 +51,6 @@ def get_language(data):
     returns: a Series identifying the language of each line
     """
     return data['lang']
-        
-def read_phoible(path):
-    """
-    path: location of PHOIBLE tsv 
-    """
-    df = pd.read_csv(path, sep='\t').replace(['-', '+', '-,+', '+,-'], [-1, 1, 0, 0])
-    df = df.drop_duplicates('segment')
-    df = df.set_index('segment')
-    df.loc['<'] = 0
-    return df
     
 def get_vocab(path):
     """
@@ -71,12 +61,12 @@ def get_vocab(path):
     with open(path) as f:
         return [line.split()[0] if '<' not in line else '<' for line in f]
     
-def write_model(path, languages, scripts, features):
+def write_model(path, languages, scripts, tokens, features):
     """
     path: location at which to write model
     languages: languages to include in model
     scripts: scripts to include in model
-    features: feature tokens to 
+    tokens: artificial tokens to prepend to each source-side file
     """
     create_model_dir(path)
     train, validate = wiki.generate_partitioned_train_validate(languages, scripts)
@@ -85,9 +75,9 @@ def write_model(path, languages, scripts, features):
     for name, frame in [('train', train), ('dev', validate), ('test', test)]:
         print('Writing file: ' + join(path, 'corpus', 'src.' + name))
         source_data = frame['spelling']
-        if 'langid' in features:
-            #source_data = prepend_tokens(source_data, get_language(frame))
-            source_data = word_level_features(source_data, get_language(frame))
+        if 'langid' in tokens:
+            source_data = prepend_tokens(source_data, get_language(frame))
+            #source_data = word_level_features(source_data, get_language(frame))
             
             
         source_data.to_csv(join(path, 'corpus', 'src.' + name), index=False)
