@@ -4,6 +4,11 @@
 Utilities for converting pronunciation data (from Deri & Knight's wiktionary
 corpus) and linguistic data (from URIEL) into an mg2p model directory that
 can subsequently be used for training and translation.
+
+The point of wrangle_data is to take several sources of data that have
+been created elsewhere, combine them, put them in an OpenNMT-friendly
+format, and write them to a directory that can be read by the training
+and translating 
 """
 
 import os
@@ -25,6 +30,14 @@ def prepend_tokens(source_data, *args):
     # this is very ugly
     tokens = [arg.apply(lambda x: '<{}>'.format('_'.join(str(x).split()))) for arg in args]
     return tokens[0].str.cat(tokens[1:] + [source_data], sep=' ')
+    
+def word_level_features(source_data, feature):
+    """
+    source_data: a Series of source-side orthographic data
+    feature: a Series. Add the element at each index
+                    of the Series to 
+    """
+    return source_data.str.split(expand=True).apply(lambda char: char.str.cat(feature, sep='|')).apply(lambda row: ' '.join(row.dropna()), axis=1)
         
 def create_model_dir(path):
     os.makedirs(join(path, 'corpus'))
@@ -58,7 +71,7 @@ def get_vocab(path):
     with open(path) as f:
         return [line.split()[0] if '<' not in line else '<' for line in f]
     
-def write_model(path, languages, scripts, features, phoneme_vectors):
+def write_model(path, languages, scripts, features):
     """
     path: location at which to write model
     languages: languages to include in model
@@ -69,17 +82,14 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     train, validate = wiki.generate_partitioned_train_validate(languages, scripts)
     test = wiki.generate_test() # every model gets the same test set
     
-    # here: auxiliary data sources
-    
     for name, frame in [('train', train), ('dev', validate), ('test', test)]:
         print('Writing file: ' + join(path, 'corpus', 'src.' + name))
         source_data = frame['spelling']
         if 'langid' in features:
-            source_data = prepend_tokens(source_data, get_language(frame))
-        if 'inventory' in features:
-            inventory = ur_inv.get_features(frame)
-            #source_data = prepend_tokens(frame['spelling'], ur_inv.get_features(frame))
-            source_data = inventory.str.cat(source_data, sep=' ')
+            #source_data = prepend_tokens(source_data, get_language(frame))
+            source_data = word_level_features(source_data, get_language(frame))
+            
+            
         source_data.to_csv(join(path, 'corpus', 'src.' + name), index=False)
         print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
         frame['ipa'].to_csv(join(path, 'corpus', 'tgt.' + name), index=False)
@@ -89,10 +99,3 @@ def write_model(path, languages, scripts, features, phoneme_vectors):
     test['lang'].to_csv(join(path, 'corpus', 'lang_index.test'), index=False) # note the lack of angle brackets
         
     preprocess(path)
-    if phoneme_vectors:
-        # not gonna consider multiple data sources: just using phoible for now
-        phoible = read_phoible('/home/bpop/thesis/mg2p/data/phoible-segments-features.tsv')
-        tgt_phones = get_vocab(join(path, 'corpus', 'data.tgt.dict'))
-        raw_vectors = phoible.loc[tgt_phones,:].fillna(0)
-        raw_vectors.to_csv(join(path, 'corpus', 'raw_vectors.csv'), sep=',', index=False, header=False)
-        serialize_vectors(join(path, 'corpus', 'raw_vectors.csv'), join(path, 'corpus', 'phones.vec'))
