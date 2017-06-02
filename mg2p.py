@@ -29,8 +29,6 @@ parser.add_argument('-s', '--script',
         nargs='*',
         default=None,
         help='If preprocessing, scripts for which to select data (default: all)')
-parser.add_argument('-p', '--phoneme_vectors', default=None,
-        help='Data source for fixed phoneme embeddings for the decoder (are there really multiple options?)')
 opt = parser.parse_args()
 
 HIGH_RESOURCE = ['ady', 'afr', 'ain', 'amh', 'ang', 'ara', 'arc', 'ast', 
@@ -86,7 +84,7 @@ def main():
             lang = ADAPTED
         else:
             lang = opt.lang
-        write_model(opt.name, lang, opt.script, opt.features, opt.phoneme_vectors)
+        write_model(opt.name, lang, opt.script, opt.features)
     if opt.train:
         train(opt.name, opt.train_config)
     if opt.translate:
