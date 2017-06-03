@@ -17,6 +17,7 @@ import tools.wiktionary as wiki # purpose of wiki: turn D&K stuff into pandas da
 from tools.lua_functions import preprocess, serialize_vectors
 import tools.uriel_inventory as ur_inv
 import pandas as pd
+import numpy as np
 
 # wouldn't it be better to just take arbitrarily many Series,
 def prepend_tokens(source_data, *args):
@@ -30,20 +31,19 @@ def prepend_tokens(source_data, *args):
     # this is very ugly
     tokens = [arg.apply(lambda x: '<{}>'.format('_'.join(str(x).split()))) for arg in args]
     return tokens[0].str.cat(tokens[1:] + [source_data], sep=' ')
+
+@np.vectorize    
+def add_line_features(word, feature):
+    return ' '.join([char + feature for char in word])
     
-def word_level_features(source_data, feature):
-    """
-    source_data: a Series of source-side orthographic data
-    feature: a Series. Add the element at each index
-                    of the Series to 
-    """
-    return source_data.str.split(expand=True).apply(lambda char: char.str.cat(feature, sep='|')).apply(lambda row: ' '.join(row.dropna()), axis=1)
+def word_level_features(source_data, *features):
+    dummy = pd.Series('', source_data.index)
+    features = dummy.str.cat(features, sep='￨')
+    
+    tagged_words = add_line_features(source_data.str.split(), feature)
+    return pd.Series(tagged_words)
         
-def create_model_dir(path):
-    os.makedirs(join(path, 'corpus'))
-    os.makedirs(join(path, 'nn'))
-    print('Made model directory at {}'.format(path))
-    
+# unexplained: why this is here
 def get_language(data):
     """
     data: DataFrame containing source side data, target side data, and the
@@ -52,15 +52,12 @@ def get_language(data):
     """
     return data['lang']
     
-def get_vocab(path):
-    """
-    Returns the symbols in the target vocab in the ordering from the
-    tgt.dict file. Any fictional character (one in angle brackets) is
-    represented as an opening angle bracket.
-    """
-    with open(path) as f:
-        return [line.split()[0] if '<' not in line else '<' for line in f]
+def create_model_dir(path):
+    os.makedirs(join(path, 'corpus'))
+    os.makedirs(join(path, 'nn'))
+    print('Made model directory at {}'.format(path))
     
+# quasi-main method
 def write_model(path, languages, scripts, tokens, features):
     """
     path: location at which to write model
@@ -69,16 +66,19 @@ def write_model(path, languages, scripts, tokens, features):
     tokens: artificial tokens to prepend to each source-side file
     """
     create_model_dir(path)
+    # it takes 10 seconds from starting mg2p.py to get here. Why? Various imports?
     train, validate = wiki.generate_partitioned_train_validate(languages, scripts)
     test = wiki.generate_test() # every model gets the same test set
     
     for name, frame in [('train', train), ('dev', validate), ('test', test)]:
         print('Writing file: ' + join(path, 'corpus', 'src.' + name))
         source_data = frame['spelling']
+        # having both tokens and features might not be compatible
         if 'langid' in tokens:
             source_data = prepend_tokens(source_data, get_language(frame))
             #source_data = word_level_features(source_data, get_language(frame))
-            
+        if 'langid' in features:
+            source_data = word_level_features(source_data, get_language(frame))
             
         source_data.to_csv(join(path, 'corpus', 'src.' + name), index=False)
         print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
