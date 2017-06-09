@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 
-from os.path import join
-import os
-from tools.wrangle_data import write_model
-from tools.lua_functions import train, translate
+from tools.model import G2PModel
 import argparse
 import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('name', help="Path to model")
-parser.add_argument('-preprocess', action='store_true',
-        help='Create model directory and populate it with wiktionary data')
+'''
 parser.add_argument('-t', '--tokens',
         nargs='*',
         default=[],
         help='Artificial tokens to add to the beginning of each source-side line, in practice always the langid feature (default: none of them)')
+'''
 parser.add_argument('-f', '--features',
         nargs='*',
         default=[],
@@ -78,21 +75,32 @@ ADAPTED = ['aar', 'abk', 'abq', 'ace', 'ach', 'ady', 'afr', 'agr',
                 'yue', 'zha', 'zho', 'zul', 'zza']
     
 def main():
+    if opt.lang == ['high']:
+        lang = HIGH_RESOURCE
+    elif opt.lang == ['adapted']:
+        lang = ADAPTED
+    else:
+        lang = opt.lang
+    model = G2PModel(opt.name, train_langs=lang, train_scripts=opt.script,
+                        src_features=opt.features)
+    if opt.train:
+        model.train(opt.train_config)
+    if opt.translate:
+        model.translate()
+    '''
     if not any([opt.preprocess, opt.train, opt.translate]):
         print('Specify at least one action (preprocess, train, test)')
         sys.exit()
     if opt.preprocess:
-        if opt.lang == 'high':
+        if opt.lang == ['high']:
             lang = HIGH_RESOURCE
-        elif opt.lang == 'adapted':
+        elif opt.lang == ['adapted']:
             lang = ADAPTED
         else:
             lang = opt.lang
         write_model(opt.name, lang, opt.script, opt.tokens, opt.features)
-    if opt.train:
-        train(opt.name, opt.train_config)
-    if opt.translate:
-        translate(opt.name, 'epoch13')
+    '''
+    
 
 if __name__ == '__main__':
     main()
