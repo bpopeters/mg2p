@@ -166,18 +166,30 @@ def evaluate_single_model(path):
     model_name = name_mapper.get(raw_name, raw_name)
     
     predicted = word_series(join(path, 'predicted.txt')) # is it necessary to do it like this?
+    
+    print(predicted)
+    
+    '''
     predicted_1 = read_nbest(join(path, 'predicted-100.txt'), n=1)
     predicted_100 = read_nbest(join(path, 'predicted-100.txt'), n=100)
+    '''
     gold = word_series(join(path, 'corpus', 'tgt.test'))
+    
+    
     lang_id = pd.read_csv(join(path, 'corpus', 'lang_index.test'), na_filter=False, header=None).squeeze()
     
-    results = pd.DataFrame.from_items([('lang', lang_id), ('gold', gold), ('predicted', predicted), ('predicted-100', predicted_100), ('predicted-1', predicted_1)])
+    #results = pd.DataFrame.from_items([('lang', lang_id), ('gold', gold), ('predicted', predicted), ('predicted-100', predicted_100), ('predicted-1', predicted_1)])
+    results = pd.DataFrame.from_items([('lang', lang_id), ('gold', gold), ('predicted', predicted)])
     #results.loc[results['lang'] == 'spa',:]
     phones = results.groupby('lang').apply(per)
     words = results.groupby('lang').apply(wer)
+    
+    '''
     words1 = results.groupby('lang').apply(wer1)
     words100 = results.groupby('lang').apply(wer100)
     df = pd.DataFrame.from_items([('WER', words1), ('WER 100', words100), ('PER', phones)])
+    '''
+    df = pd.DataFrame.from_items([('WER', words), ('PER', phones)])
     df = df * 100
     df.loc['all',:] = df.mean() # seems to work
     df.loc['high resource',:] = df.loc[HIGH_RESOURCE,:].mean()
@@ -217,10 +229,12 @@ def main():
     opt = parser.parse_args()
     
     model_stats = evaluate(opt.models)
+    '''
     exp_result_table(model_stats, 'adapted')
     exp_result_table(model_stats, 'high resource')
     exp_result_table(model_stats, 'unseen')
-    model_stats.to_csv('all_results.csv', sep='\t', float_format='%.3f')
+    '''
+    model_stats.to_csv('langid-wals-pfeatures-all-results.csv', sep='\t', float_format='%.3f')
     
 if __name__ == '__main__':
     main()
