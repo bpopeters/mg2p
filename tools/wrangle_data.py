@@ -39,8 +39,9 @@ def add_line_features(word, feature):
 def word_level_features(source_data, *features):
     dummy = pd.Series('', source_data.index)
     features = dummy.str.cat(features, sep='￨')
+    print(features.notnull().all())
     
-    tagged_words = add_line_features(source_data.str.split(), feature)
+    tagged_words = add_line_features(source_data.str.split(), features)
     return pd.Series(tagged_words)
         
 # unexplained: why this is here
@@ -74,11 +75,20 @@ def write_model(path, languages, scripts, tokens, features):
         print('Writing file: ' + join(path, 'corpus', 'src.' + name))
         source_data = frame['spelling']
         # having both tokens and features might not be compatible
+        
+        '''
         if 'langid' in tokens:
             source_data = prepend_tokens(source_data, get_language(frame))
             #source_data = word_level_features(source_data, get_language(frame))
         if 'langid' in features:
             source_data = word_level_features(source_data, get_language(frame))
+        if 'vowels' in features:
+            source_data = word_level_features(source_data, ur_inv.get_vowels(get_language(frame)))
+        '''
+        if 'langid' in features:
+            lang_index = get_language(frame)
+            source_data = word_level_features(source_data, lang_index)
+            
             
         source_data.to_csv(join(path, 'corpus', 'src.' + name), index=False)
         print('Writing file: ' + join(path, 'corpus', 'tgt.' + name))
