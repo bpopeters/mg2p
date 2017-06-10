@@ -4,10 +4,29 @@ import sys
 from os.path import join, exists
 import os
 import subprocess
-import wiktionary as wiki
+import tools.wiktionary as wiki # weird things happen with imports
 import pandas as pd
-from itertools import chain
+from itertools import chain, cycle
 import re
+
+def feature_cycles(features):
+    result = []
+    for feat in features:
+        if isinstance(feat, str):
+            result.append(cycle([feat]))
+        else:
+            result.append(cycle(feat))
+    return result
+
+def tag_line(word, *feats):
+    """
+    word: a list of singleton strings, ie characters
+    feats: a list. Each element of the list is a string. Each of those strings
+            should be joined to each character.
+            However, what if 
+    """
+    tagged_characters = ['￨'.join(chr_and_feats) for chr_and_feats in zip(word, *feature_cycles(feats))]
+    return ' '.join(tagged_characters)
 
 # check: correct behavior if there are no features?
 # also, missing thing: artificial tokens (it's okay, those are easy)
@@ -27,13 +46,9 @@ def tag(data, side, *features):
         feature_sequences = [f(data) for f in features]
         
         tokenized_words = words.str.split() # make sure there isn't weird NA stuff
-        tagged_words = []
-        for word_and_features in zip(tokenized_words, *feature_sequences):
-            word, feats = word_and_features[0], word_and_features[1:]
-            tagged_word = ' '.join(['￨'.join(chain([w], feats)) for w in word])
-            tagged_words.append(tagged_word)
-        result = pd.Series(tagged_words, words.index)
-        return result
+        
+        tagged_words = [tag_line(*word_and_features) for word_and_features in zip(tokenized_words, *feature_sequences)]
+        return pd.Series(tagged_words, words.index)
     else:
         return data[side].copy() # copy necessary?
         
@@ -42,6 +57,13 @@ def epoch_number(path):
     
 def negative_ppl(path):
     return -float(re.search(r'[0-9]+\.[0-9]+(?!\.t7)', path).group(0))
+    
+def dummy_feature(data):
+    """
+    data: the corpus table
+    returns: 
+    """
+    return data['src'].str.split()
 
 class G2PModel(object):
     
@@ -50,6 +72,8 @@ class G2PModel(object):
     
     training_corpus = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_train'
     test_corpus = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
+    
+    feature_lookup = {'langid': lambda data: data['lang']} # this bit may change
             
     # two cases: you've already made the data and put it in the directory
     # (i.e. you've already done mg2p.py -preprocess)
@@ -67,8 +91,8 @@ class G2PModel(object):
             
             # select the data and add the relevant features
             data = self.make_data(train_langs, train_scripts)
-            src_sequence = tag(data, 'src', *src_features)
-            tgt_sequence = tag(data, 'tgt', *tgt_features)
+            src_sequence = tag(data, 'src', *self._look_up_features(src_features))
+            tgt_sequence = tag(data, 'tgt', *self._look_up_features(tgt_features))
             
             # write the src and tgt data to files
             for partition in ('train', 'dev', 'test'):
@@ -83,6 +107,9 @@ class G2PModel(object):
             print('Proceeding with already created data at {}'.format(self.path))
             if any([train_langs, train_scripts, src_features, tgt_features]):
                 print('Disregarding some of the passed arguments: if dir already exists, only pass the model_name')
+                
+    def _look_up_features(self, feature_names):
+        return [self.feature_lookup[name] for name in feature_names if name in self.feature_lookup]
         
     def create_model_dir(self):
         os.makedirs(join(self.path, 'corpus'))
