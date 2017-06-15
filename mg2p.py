@@ -16,6 +16,8 @@ parser.add_argument('-f', '--features',
         nargs='*',
         default=[],
         help='Character-level features to concatenate to the input at each time step (default: none of them)')
+parser.add_argument('-preprocess', action='store_true',
+        help='Apply torch preprocessing to the training and validation data')
 parser.add_argument('-train', action='store_true',
         help='Train the model')
 parser.add_argument('-translate', action='store_true',
@@ -75,6 +77,9 @@ ADAPTED = ['aar', 'abk', 'abq', 'ace', 'ach', 'ady', 'afr', 'agr',
                 'yue', 'zha', 'zho', 'zul', 'zza']
     
 def main():
+    if not any([opt.preprocess, opt.train, opt.translate]):
+        print('Specify at least one action (preprocess, train, test)')
+        sys.exit()
     if opt.lang == ['high']:
         lang = HIGH_RESOURCE
     elif opt.lang == ['adapted']:
@@ -83,24 +88,12 @@ def main():
         lang = opt.lang
     model = G2PModel(opt.name, train_langs=lang, train_scripts=opt.script,
                         src_features=opt.features)
+    if opt.preprocess:
+        model.preprocess()
     if opt.train:
         model.train(opt.train_config)
     if opt.translate:
         model.translate()
-    '''
-    if not any([opt.preprocess, opt.train, opt.translate]):
-        print('Specify at least one action (preprocess, train, test)')
-        sys.exit()
-    if opt.preprocess:
-        if opt.lang == ['high']:
-            lang = HIGH_RESOURCE
-        elif opt.lang == ['adapted']:
-            lang = ADAPTED
-        else:
-            lang = opt.lang
-        write_model(opt.name, lang, opt.script, opt.tokens, opt.features)
-    '''
     
-
 if __name__ == '__main__':
     main()
