@@ -5,9 +5,11 @@ from os.path import join, exists
 import os
 import subprocess
 import tools.wiktionary as wiki # weird things happen with imports
+from tools.features import Rule
 import pandas as pd
 from itertools import chain, cycle
 import re
+import tools.eval_funcs as eval_funcs
 
 def feature_cycles(features):
     result = []
@@ -28,8 +30,6 @@ def tag_line(word, *feats):
     tagged_characters = ['￨'.join(chr_and_feats) for chr_and_feats in zip(word, *feature_cycles(feats))]
     return ' '.join(tagged_characters)
 
-# check: correct behavior if there are no features?
-# also, missing thing: artificial tokens (it's okay, those are easy)
 def tag(data, side, *features):
     """
     data: the wiktionary data table
@@ -42,11 +42,8 @@ def tag(data, side, *features):
     # pandas vectorized string options are way too slow. This is better.
     if features:
         words = data[side]
-        
         feature_sequences = [f(data) for f in features]
-        
         tokenized_words = words.str.split() # make sure there isn't weird NA stuff
-        
         tagged_words = [tag_line(*word_and_features) for word_and_features in zip(tokenized_words, *feature_sequences)]
         return pd.Series(tagged_words, words.index)
     else:
@@ -69,22 +66,22 @@ class G2PModel(object):
     
     opennmt_path = '/home/bpop/OpenNMT/'
     mg2p_path = '/home/bpop/thesis/mg2p'
+    model_dir = 'models/'
     
     training_corpus = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_train'
     test_corpus = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
     
-    feature_lookup = {'langid': lambda data: data['lang']} # this bit may change
+    feature_lookup = {'langid': lambda data: data['lang'],
+                        'rules':Rule().get_feature} # this bit may change
             
-    # two cases: you've already made the data and put it in the directory
-    # (i.e. you've already done mg2p.py -preprocess)
-    # (then you just need to make sure self.path and self.train_config
-    # are going to the correct place (actually, maybe demote train_config...)
     def __init__(self, model_name, train_langs=None, train_scripts=None, src_features=[], tgt_features=[]):
         """
         model_name: unlike in previous versions, does not need to be formatted like a path.
                     The object will know where to put it.
         """
-        self.path = join(self.mg2p_path, 'models', model_name)
+        self.path = join(self.mg2p_path, self.model_dir, model_name)
+        
+        #self.data should be a thing!
         
         if not exists(self.path):
             self.create_model_dir()
@@ -100,9 +97,6 @@ class G2PModel(object):
                 tgt_sequence.loc[data['Partition'] == partition].to_csv(self.corpus_file('tgt', partition), index=False)
                     
             data.loc[data['Partition'] == 'test','lang'].to_csv(join(self.path, 'corpus', 'lang_index.test'), index=False)
-                
-            # do the torch preprocessing part
-            self.preprocess()
         else:
             print('Proceeding with already created data at {}'.format(self.path))
             if any([train_langs, train_scripts, src_features, tgt_features]):
@@ -116,9 +110,11 @@ class G2PModel(object):
         os.makedirs(join(self.path, 'nn'))
         print('Made model directory at {}'.format(self.path))
         
-    def make_data(self, train_langs, train_scripts):
+    def make_data(self, train_langs, train_scripts, test_langs=None, test_scripts=None):
         training, validation = wiki.generate_partitioned_train_validate(train_langs, train_scripts)
-        test = wiki.generate_test()
+        
+        test = wiki.generate_test(test_langs, test_scripts) # achtung!
+        
         # Keeping wiki as it is now so as not to break the old way of doing things.
         training['Partition'] = 'train'
         validation['Partition'] = 'dev'
@@ -170,15 +166,17 @@ class G2PModel(object):
         subprocess.run(command)
         os.chdir(self.mg2p_path)
         
-    def translate(self, how='latest'):
+    def translate(self, how='latest', source=None, target=None):
         """
         todo: optionally translating something other than src.test
         """
         network = self.pick_network(how=how)
         print('Translating with model {}'.format(network))
         
-        source = self.corpus_file('src', 'test')
-        target = self.corpus_file('tgt', 'test')
+        if not source:
+            source = self.corpus_file('src', 'test')
+        if not target:
+            target = self.corpus_file('tgt', 'test')
         
         os.chdir(self.opennmt_path)
         subprocess.run(['th', 'translate.lua', '-model', join(self.path, 'nn', network), 
@@ -186,3 +184,28 @@ class G2PModel(object):
             '-output', join(self.path, 'predicted.txt'),
             '-log_file', join(self.path, 'translate.log')])
         os.chdir(self.mg2p_path)
+        
+    def evaluate(self, gold_path=None, predicted_path=None, lang_index_path=None, out_path=None, lang_subsets=[]):
+        if not gold_path:
+            gold_path = self.corpus_file('tgt', 'test')
+        if not predicted_path:
+            predicted_path = join(self.path, 'predicted.txt')
+        if not lang_index_path:
+            lang_index_path = join(self.path, 'corpus', 'lang_index.test')
+            
+        lang_index = pd.read_csv(lang_index_path, header=None, na_filter=False).squeeze()
+        gold = pd.read_csv(gold_path, header=None, squeeze=True).str.split()
+        predicted = pd.read_csv(predicted_path, header=None, squeeze=True).str.split()
+        df = pd.DataFrame.from_items([('lang', lang_index), ('gold', gold), ('predicted', predicted)])
+        per = df.groupby('lang').apply(eval_funcs.per)
+        wer = df.groupby('lang').apply(eval_funcs.wer)
+        sub_errors = df.groupby('lang').apply(eval_funcs.substitution_errors)
+        
+        results = pd.DataFrame.from_items([('WER', wer), ('PER', per), ('Substitutions', sub_errors)])
+        results.loc['all',:] = results.mean()
+        for n, lang_sub in enumerate(lang_subsets, 1):
+            results.loc['subset ' + str(n),:] = results.loc[lang_sub,:].mean()
+        if not out_path:
+            return results
+        results.to_csv(out_path, sep='\t', float_format='%.3f')
+        
