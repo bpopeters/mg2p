@@ -133,8 +133,8 @@ def main():
     parser.add_argument('test_langs',
                         help="""Labels identifying the languages. Necessary
                         for computing error metrics per language.""")
+    parser.add_argument('out', help='Outfile name')
     parser.add_argument('-wer', nargs='+', type=int, default=[1])
-    parser.add_argument('-out', help='Outfile name')
     parser.add_argument('-mg2p_subsets', action='store_true')
     opt = parser.parse_args()
 
@@ -158,8 +158,8 @@ def main():
     phonemes = data.groupby(level=0).apply(
         lambda df: per(df['best_pred'], df['gold'])
     )
-    metrics = pd.DataFrame(data={'per': phonemes})
 
+    metrics = pd.DataFrame(data={'per': phonemes})
     for n in opt.wer:
         name = 'wer_' + str(n)
         metrics[name] = data.groupby(level=0).apply(
@@ -171,7 +171,7 @@ def main():
 
     summary = pd.DataFrame.from_dict(data=averages, orient='index')
     metrics = metrics.append(summary)
-    print(metrics)
+    metrics.to_csv(opt.out, sep='\t', float_format='%.3f')
 
 
 if __name__ == '__main__':
