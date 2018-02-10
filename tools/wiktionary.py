@@ -63,12 +63,16 @@ def read_data(path, languages=None, scripts=None):
     # perhaps different processing of the converters will be necessary
     # if I do anything with diacritics
     # also if I clean the wiktionary data
+    #converters = {'spelling': lambda word: ' '.join(w.lower().strip() for w in word)}
+    converters = {'spelling': lambda word: ' '.join(w.lower().strip() for w in word),
+                  'raw_ipa': lambda word: ' '.join(w.lower().strip() for w in word)}
     df = pd.read_csv(path, sep='\t', 
                 names=['lang', 'script', 'spelling', 'ipa', 'raw_ipa'],
-                usecols=['lang', 'script', 'spelling', 'ipa'],
-                converters={'spelling': lambda word: ' '.join(w.lower().strip() for w in word)},
+                usecols=['lang', 'script', 'spelling', 'raw_ipa'],
+                converters=converters,
                 na_filter=False, #because there's a language with ISO 639-3 code nan
                 encoding='utf-8')
+    df = df.rename(columns={'raw_ipa': 'ipa'})
     selected_langs = select_rows(df, 'lang', languages)
     selected_langs_and_scripts = select_rows(selected_langs, 'script', scripts)
     return selected_langs_and_scripts
@@ -128,7 +132,8 @@ def generate_partitioned_train_validate(languages, scripts):
     train, validate = partition_data(train_and_validate, 0.1)
     return train, validate
     
-def generate_test(languages=None, scripts=None):
+def generate_test(languages, scripts):
+    print(languages)
     return read_data(TEST_DATA_PATH, languages, scripts)
 
 

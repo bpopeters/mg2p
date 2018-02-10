@@ -5,7 +5,7 @@ from os.path import join, exists
 import os
 import subprocess
 import tools.wiktionary as wiki # weird things happen with imports
-from tools.features import Rule
+from tools.features import G2PRule, AvgG2PFeature
 import pandas as pd
 from itertools import chain, cycle
 import re
@@ -72,22 +72,23 @@ class G2PModel(object):
     test_corpus = '/home/bpop/thesis/mg2p/data/deri-knight/pron_data/gold_data_test'
     
     feature_lookup = {'langid': lambda data: data['lang'],
-                        'rules':Rule().get_feature} # this bit may change
+                        'rules':G2PRule().get_feature,
+                        'grapheme_feat':AvgG2PFeature().get_feature} # this bit may change
             
     def __init__(self, model_name, train_langs=None, train_scripts=None, src_features=[], tgt_features=[]):
         """
         model_name: unlike in previous versions, does not need to be formatted like a path.
                     The object will know where to put it.
         """
-        self.path = join(self.mg2p_path, self.model_dir, model_name)
-        
-        #self.data should be a thing!
+        self.path = join(self.mg2p_path, model_name)
         
         if not exists(self.path):
             self.create_model_dir()
             
             # select the data and add the relevant features
-            data = self.make_data(train_langs, train_scripts)
+            data = self.make_data(train_langs, train_scripts, train_langs, train_scripts)
+            data = data.loc[(data['src'].str.len() > 0) & (data['tgt'].str.len() > 0)]
+
             src_sequence = tag(data, 'src', *self._look_up_features(src_features))
             tgt_sequence = tag(data, 'tgt', *self._look_up_features(tgt_features))
             
@@ -95,7 +96,8 @@ class G2PModel(object):
             for partition in ('train', 'dev', 'test'):
                 src_sequence.loc[data['Partition'] == partition].to_csv(self.corpus_file('src', partition), index=False)
                 tgt_sequence.loc[data['Partition'] == partition].to_csv(self.corpus_file('tgt', partition), index=False)
-                    
+
+            data.loc[data['Partition'] == 'train','lang'].to_csv(join(self.path, 'corpus', 'lang_index.train'), index=False)
             data.loc[data['Partition'] == 'test','lang'].to_csv(join(self.path, 'corpus', 'lang_index.test'), index=False)
         else:
             print('Proceeding with already created data at {}'.format(self.path))
@@ -135,12 +137,11 @@ class G2PModel(object):
         Returns the path to the network to be used for translation
         """
         # if latest, then you pick the one with the biggest epoch number
+        assert how in ['latest', 'best'], 'Please use a defined how'
         if how == 'latest':
             keyfunc = epoch_number
         elif how == 'best':
             keyfunc = negative_ppl
-        else:
-            raise ValueError
         return max((p for p in os.listdir(join(self.path, 'nn'))), key=keyfunc)
         
     def preprocess(self):
@@ -150,9 +151,7 @@ class G2PModel(object):
                         '-train_tgt', self.corpus_file('tgt', 'train'), 
                         '-valid_src', self.corpus_file('src', 'dev'), 
                         '-valid_tgt', self.corpus_file('tgt', 'dev'), 
-                        '-save_data', join(self.path, 'corpus', 'data'),
-                        '-src_seq_length', '150',
-                        '-tgt_seq_length', '150'])
+                        '-save_data', join(self.path, 'corpus', 'data')]) # removed len-150 src/tgt sequences
         os.chdir(self.mg2p_path)
             
     def train(self, train_config=None):
@@ -193,19 +192,50 @@ class G2PModel(object):
         if not lang_index_path:
             lang_index_path = join(self.path, 'corpus', 'lang_index.test')
             
-        lang_index = pd.read_csv(lang_index_path, header=None, na_filter=False).squeeze()
-        gold = pd.read_csv(gold_path, header=None, squeeze=True).str.split()
-        predicted = pd.read_csv(predicted_path, header=None, squeeze=True).str.split()
-        df = pd.DataFrame.from_items([('lang', lang_index), ('gold', gold), ('predicted', predicted)])
+        lang_index_test = pd.read_csv(
+                    lang_index_path, header=None, na_filter=False).squeeze()
+        lang_index_train = pd.read_csv(
+                    join(self.path, 'corpus', 'lang_index.train'),
+                    header=None, na_filter=False).squeeze()
+        gold = pd.read_csv(gold_path, header=None,
+                           squeeze=True, skip_blank_lines=False).str.split()
+        predicted = pd.read_csv(predicted_path, header=None,
+                                squeeze=True, skip_blank_lines=False,
+                                na_filter=False).str.split()
+        df = pd.DataFrame.from_items([('lang', lang_index_test),
+                                      ('gold', gold),
+                                      ('predicted', predicted)])
+        test_counts = df.groupby('lang').size()
+        train_counts = lang_index_train.value_counts().loc[test_counts.index]
+        train_counts = train_counts.fillna(0)
         per = df.groupby('lang').apply(eval_funcs.per)
         wer = df.groupby('lang').apply(eval_funcs.wer)
-        sub_errors = df.groupby('lang').apply(eval_funcs.substitution_errors)
+        #sub_errors = df.groupby('lang').apply(eval_funcs.substitution_errors)
         
-        results = pd.DataFrame.from_items([('WER', wer), ('PER', per), ('Substitutions', sub_errors)])
+        results = pd.DataFrame.from_items([('WER', wer),
+                                           ('PER', per),
+                                           ('Train', train_counts),
+                                           ('Test', test_counts)])
         results.loc['all',:] = results.mean()
+        results['Train'] = results['Train'].astype(int)
+        results['Test'] = results['Test'].astype(int)
         for n, lang_sub in enumerate(lang_subsets, 1):
             results.loc['subset ' + str(n),:] = results.loc[lang_sub,:].mean()
         if not out_path:
             return results
         results.to_csv(out_path, sep='\t', float_format='%.3f')
+        
+class G2PModel_py(G2PModel):
+    """"""
+    
+    opennmt_path = None # shouldn't need to do this kind of io stuff
+    mg2p_path = None
+    
+    def preprocess(self):
+        """
+        gotta do something with preprocess.py instead.
+        for which, gotta import the module and such
+        """
+        pass
+    
         

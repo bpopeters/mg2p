@@ -6,6 +6,7 @@ evaluate.py computes result statistics for arbitrarily many
 
 import argparse
 from itertools import groupby, count
+from collections import Counter
 import pandas as pd
 
 
@@ -109,7 +110,7 @@ def wer(predicted, gold, n=1):
     returns:
     """
     assert len(predicted) == len(gold)
-    incorrect = sum(g not in p[:n] for p, g in zip(predicted, gold))
+    incorrect = sum(g not in set(p[:n]) for p, g in zip(predicted, gold))
     return incorrect / len(predicted)
 
 
@@ -120,58 +121,79 @@ def per(predicted, gold):
     return total_distance / gold_length
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-models',
-                        nargs='*',
-                        help="Paths to models")
-    parser.add_argument('gold',
-                        help="""Path to gold data.""")
-    parser.add_argument('predicted',
-                        help="""Path to model predictions. The file is allowed
-                        to contain more than one prediction per word.""")
-    parser.add_argument('test_langs',
-                        help="""Labels identifying the languages. Necessary
-                        for computing error metrics per language.""")
-    parser.add_argument('out', help='Outfile name')
-    parser.add_argument('-wer', nargs='+', type=int, default=[1])
-    parser.add_argument('-mg2p_subsets', action='store_true')
-    opt = parser.parse_args()
-
-    with open(opt.test_langs) as f:
-        langs = [line.strip() for line in f]
-    with open(opt.gold) as f:
+def aligned_data(gold_file, pred_file, langs=None):
+    with open(gold_file) as f:
         gold = [tuple(line.strip().split()) for line in f]
-    with open(opt.predicted) as f:
+    with open(pred_file) as f:
         predicted = [tuple(line.strip().split()) for line in f]
-
     assert len(predicted) % len(gold) == 0
-    predicted = chunks(predicted, len(predicted) // len(gold))
 
+    predicted = chunks(predicted, len(predicted) // len(gold))
     best_pred = [p[0] for p in predicted]
+    if langs is None:
+        langs = ['lang' for p in predicted]
 
     data = pd.DataFrame(
         data={'gold': gold, 'all_pred': predicted, 'best_pred': best_pred},
         index=langs
     )
+    return data
 
-    phonemes = data.groupby(level=0).apply(
-        lambda df: per(df['best_pred'], df['gold'])
-    )
 
-    metrics = pd.DataFrame(data={'per': phonemes})
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('gold',
+                        help="""Path to gold data.""")
+    parser.add_argument('predicted',
+                        help="""Path to model predictions. The file is allowed
+                        to contain more than one prediction per word.""")
+    parser.add_argument('-test_langs',
+                        help="""Labels identifying the languages. Necessary
+                        for computing error metrics per language.""")
+    parser.add_argument('-train_langs',
+                        help="""Labels identify the language of each training
+                        sample. This allows us to study the relationship
+                        between training data size and error rate""")
+    parser.add_argument('out', help='Outfile name')
+    parser.add_argument('-wer', nargs='+', type=int, default=[1])
+    parser.add_argument('-no_subsets', action='store_true')
+    parser.add_argument('-monolingual', action='store_true')
+    opt = parser.parse_args()
+
+    langs = None
+    test_counts = Counter()
+    train_counts = Counter()
+    if opt.test_langs is not None:
+        with open(opt.test_langs) as f:
+            langs = [line.strip() for line in f]
+            test_counts = Counter(langs)
+    if opt.train_langs is not None:
+        with open(opt.train_langs) as f:
+            train_counts = Counter(line.strip() for line in f)
+
+    data = aligned_data(opt.gold, opt.predicted, langs)
+
+    metric_columns = dict()
     for n in opt.wer:
         name = 'wer_' + str(n)
-        metrics[name] = data.groupby(level=0).apply(
+        metric_columns[name] = data.groupby(level=0).apply(
             lambda df: wer(df['all_pred'], df['gold'], n)
         )
+    metric_columns['per'] = data.groupby(level=0).apply(
+        lambda df: per(df['best_pred'], df['gold'])
+    )
+    metrics = pd.DataFrame(data=metric_columns)
+    metrics['train_count'] = [train_counts[l] for l in metrics.index]
+    metrics['test_count'] = [test_counts[l] for l in metrics.index]
+
     averages = {'all': metrics.mean()}
-    for subset, langs in SUBSETS.items():
-        averages[subset] = metrics.loc[langs, :].mean()
+    if not opt.no_subsets:
+        for subset, langs in SUBSETS.items():
+            averages[subset] = metrics.loc[langs, :].mean()
 
     summary = pd.DataFrame.from_dict(data=averages, orient='index')
     metrics = metrics.append(summary)
-    metrics.to_csv(opt.out, sep='\t', float_format='%.3f')
+    metrics.to_csv(opt.out, sep='\t', float_format='%.4f')
 
 
 if __name__ == '__main__':
