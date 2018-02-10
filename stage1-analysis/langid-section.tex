@@ -1,0 +1,104 @@
+\section{Language Identification}
+The results in Chapter \ref{Stage1} show that using a token or feature to represent the language of the sample is helpful in cases where an embedding has been learned for that token. The power of these embeddings is demonstrated by what happens when one feeds the same input word to the model with different language tokens, as is shown in Table~\ref{table:tokens}. The consonants in the Latin alphabet that have the highest pronunciation entropy between languages are `c' and `j' \citep{kim2012universal}, and therefore a word that contains both of them presents a concise demonstration of the model's ability to learn cross-lingual variation. Impressively, it seems as though it might even be possible to generate a reasonable pronunciation when the the source sequence is in the wrong script for the language, as is seen in the entry for Arabic.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{c|c}
+\bf Language & \bf Pronunciation \\
+\hline
+English & \textipa{d Z u: \ae I s} \\
+German & \textipa{j U t s @} \\
+Spanish & \textipa{x w i T \|`e} \\
+Italian & \textipa{d Z u i t S e} \\
+Portuguese & \textipa{Z w i s \~i} \\
+Turkish & \textipa{Z U I \|[d Z E} \\
+Arabic & \textipa{j u: i s} \\
+
+\end{tabular}
+\caption{The word `juice' translated by the \textsc{LangID-All} model with various language ID tokens.}
+\label{table:tokens}
+\end{table}
+
+In order to investigate this phenomenon further, I used the \textsc{LangID-All} and \textsc{LangF-All} models to translate ``mislabeled sequences'' in which the token or feature intentionally identifies a language other than the true language of the string, similar to in Figure \ref{table:tokens}. The goal is to determine whether these language labels effectively constrain the translation output to that language's phoneme inventory.
+
+\subsection{Data}
+The data for this investigation consists of the \textsc{WikiPronounce} test data for the 83 languages considered in Section \ref{section:training}. For each of these languages, the language representation (either a token or a feature) is added to the test grapheme sequences for each of the other languages. This yields a test set of (m)\todo{find} words for each of the (n) languages.
+
+%In order to obtain a gold standard phoneme inventory for each language, the set of phonemes that occur in the target-side training data for each language in \textsc{WikiPronounce} was used. Although this phoneme set often differs from the number of phonemes listed in resources like Phoible \citep{phoible}, this induced phoneme inventory is useful for analyzing the model because it is the phoneme inventory the model was trained on.
+
+\subsection{Evaluation}
+Performance was evaluated by measuring what percentage of the phonemes generated on the mislabeled sequences belong to the phoneme inventory of the label language. The phoneme inventory is obtained by finding the set of phonemes that occurs in the target-side training data for each language. Although this phoneme set often differs from the number of phonemes listed in resources like Phoible \citep{phoible}, it is useful for analyzing the model because it is the phoneme inventory the model was trained on. 
+
+Results are reported for each language's In-Inventory Rate, the percentage of generated phonemes that belong to the 
+
+%\begin{itemize}
+%\item In-Inventory Rate: the number of unique phonemes generated that belong to the token language's inventory divided by the total number of unique phonemes generated.
+%\item Coverage: the number of unique phonemes generated that belong to the token language's inventory divided by the size of the token language's inventory.
+%\end{itemize}
+
+As a baseline, the same experiment was run but with the \textsc{NoLangID-All} model and without language ID tokens concatenated to the input sequences. This shows the effect that the language ID tokens on producing output that is consistent with the correct language's phoneme inventory. As an upper bound for \textsc{LangID-All}'s performance on these metrics, each language's results on its own test set are also reported\todo{do this}.
+
+\subsection{Results}
+Results are presented in Table \ref{table:inventory}. The \textsc{LangID} model outperformed the \textsc{NoLangID} model at predicting phonemes that are in the correct language's inventory for all languages under consideration. The only languages with an In-Inventory Rate below 0.9 with the \textsc{LangID} model are Greek (ell), Armenian (hye), Japanese (jpn), Georgian (kat), Classical Nahuatl (nci), and Thai (tha). Of these languages, all except Classical Nahuatl are written in unique alphabets. This could explain some of these languages' problems in generating in-inventory phonemes because none of the test data was even in the correct writing system. Although Classical Nahuatl is written in the Latin alphabet, a similar phenomenon may have happened with it: the letters $<$b$>$, $<$d$>$, and $<$g$>$ were frequent in the test data but are typically not used in Classical Nahuatl\todo{does this assessment come from the data?}. These letters typically represent voiced stops, a class of consonants that Classical Nahuatl does not have.
+
+On the other hand, \textsc{LangID} did not exceed the \textsc{NoLangID} baseline in terms of coverage. This may be because coverage is a fairly lenient metric: the model only needs to predict each true phoneme in order to be given credit for it. The lowest coverage results were for languages with large phoneme inventories, such as Adyghe (ady) and Georgian (kat).
+
+One potential problem with these results is that the induced training inventories are very large for some languages: the training inventories for Danish (dan), Faroese (fao), and Persian (fas) each contained more than 90 unique phonemes, even though most data sources \todo{which?} report far smaller counts\todo{could it be because dan and fao are not in Phoible?}. This issue will be discussed in more depth in\todo{do it}.
+
+\begin{table}[h]
+\small
+\centering
+\begin{tabular}{lrr|rr|r}
+\toprule
+{} &  In-Inventory Rate &  {} &  Coverage &  {} &  Inventory Size \\
+{} &  LangID &  NoLangID & LangID &  NoLangID &  {} \\
+Language &                   &                     &                &                  &                             \\
+\midrule
+ady        &             0.931 &               0.710 &          0.724 &            0.609 &                      87.000 \\
+ang        &             0.938 &               0.583 &          0.949 &            1.000 &                      39.000 \\
+bak        &             0.916 &               0.647 &          1.000 &            0.949 &                      39.000 \\
+bul        &             0.915 &               0.537 &          0.846 &            0.974 &                      39.000 \\
+cat        &             0.937 &               0.665 &          0.939 &            0.970 &                      33.000 \\
+ces        &             0.952 &               0.640 &          0.865 &            0.892 &                      37.000 \\
+cym        &             0.946 &               0.660 &          0.956 &            0.867 &                      45.000 \\
+dan        &             0.970 &               0.831 &          0.629 &            0.724 &                     105.000 \\
+deu        &             0.964 &               0.670 &          0.851 &            0.936 &                      47.000 \\
+dsb        &             0.948 &               0.717 &          0.945 &            0.927 &                      55.000 \\
+ell        &             0.727 &               0.481 &          0.962 &            0.962 &                      26.000 \\
+eng        &             0.973 &               0.700 &          0.875 &            0.958 &                      48.000 \\
+epo        &             0.935 &               0.602 &          0.903 &            0.839 &                      31.000 \\
+fao        &             0.963 &               0.760 &          0.738 &            0.650 &                     103.000 \\
+fas        &             0.902 &               0.681 &          0.648 &            0.648 &                      91.000 \\
+fin        &             0.944 &               0.584 &          0.963 &            1.000 &                      27.000 \\
+fra        &             0.960 &               0.485 &          0.919 &            1.000 &                      37.000 \\
+gle        &             0.947 &               0.287 &          0.868 &            0.755 &                      53.000 \\
+hbs        &             0.941 &               0.602 &          0.964 &            0.964 &                      28.000 \\
+hun        &             0.969 &               0.486 &          0.914 &            0.971 &                      35.000 \\
+hye        &             0.866 &               0.458 &          0.909 &            0.848 &                      33.000 \\
+isl        &             0.931 &               0.569 &          0.857 &            0.971 &                      35.000 \\
+ita        &             0.930 &               0.576 &          0.967 &            0.933 &                      30.000 \\
+jbo        &             0.945 &               0.672 &          1.000 &            1.000 &                      34.000 \\
+jpn        &             0.797 &               0.556 &          0.920 &            0.920 &                      25.000 \\
+kat        &             0.422 &               0.275 &          0.781 &            0.781 &                      32.000 \\
+lat        &             0.944 &               0.680 &          0.889 &            0.867 &                      45.000 \\
+lit        &             0.928 &               0.573 &          0.872 &            0.915 &                      47.000 \\
+msa        &             0.953 &               0.678 &          0.907 &            0.930 &                      43.000 \\
+nci        &             0.811 &               0.539 &          0.886 &            0.857 &                      35.000 \\
+nld        &             0.965 &               0.550 &          0.875 &            0.925 &                      40.000 \\
+pol        &             0.946 &               0.570 &          0.944 &            0.917 &                      36.000 \\
+por        &             0.945 &               0.628 &          0.816 &            0.842 &                      38.000 \\
+ron        &             0.952 &               0.535 &          0.906 &            0.906 &                      32.000 \\
+rus        &             0.933 &               0.500 &          0.974 &            0.949 &                      39.000 \\
+slv        &             0.944 &               0.614 &          0.964 &            1.000 &                      28.000 \\
+spa        &             0.954 &               0.467 &          0.962 &            1.000 &                      26.000 \\
+swe        &             0.949 &               0.497 &          0.944 &            0.972 &                      36.000 \\
+syc        &             0.942 &               0.699 &          0.925 &            0.925 &                      40.000 \\
+tha        &             0.807 &               0.521 &          0.949 &            0.897 &                      39.000 \\
+tur        &             0.949 &               0.529 &          1.000 &            0.970 &                      33.000 \\
+\midrule
+Average    &             0.914 &               0.586 &          0.895 &            0.901 &                      42.707 \\
+\bottomrule
+\end{tabular}
+\caption{Inventory precision and recall averaged across all test languages when translating with each token}
+\label{table:inventory}
+\end{table}
